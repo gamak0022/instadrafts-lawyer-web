@@ -15,7 +15,7 @@ function absUrl(path: string) {
 type CaseRow = any;
 
 async function fetchCases(): Promise<CaseRow[]> {
-  const res = await fetch(absUrl('/api/v1/lawyer/cases')), { cache: 'no-store' });
+  const res = await fetch(absUrl('/api/v1/lawyer/cases'), { cache: 'no-store' });
   const j = await res.json().catch(() => null);
   if (!res.ok) throw new Error(j?.error?.message || `HTTP_${res.status}`);
   return Array.isArray(j?.cases) ? j.cases : (Array.isArray(j) ? j : []);
