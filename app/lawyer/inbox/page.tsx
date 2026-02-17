@@ -2,6 +2,27 @@ import Link from 'next/link';
 
 import { headers } from "next/headers";
 
+
+const __DEV_LAWYER_ROLE = process.env.NEXT_PUBLIC_DEV_ROLE || 'LAWYER';
+const __DEV_LAWYER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID || 'lawyer_1';
+
+function __lawyerHeaders() {
+  return {
+    'x-user-role': __DEV_LAWYER_ROLE,
+    'x-user-id': __DEV_LAWYER_ID,
+  } as Record<string, string>;
+}
+
+function __apiOriginUrl(path: string) {
+  const base =
+    process.env.API_ORIGIN ||
+    process.env.NEXT_PUBLIC_API_ORIGIN ||
+    '';
+  if (!base) throw new Error('API_ORIGIN_MISSING');
+  return new URL(path, base).toString();
+}
+
+
 function absUrl(path: string) {
   const h = headers();
   const proto = h.get("x-forwarded-proto") || "https";
@@ -15,7 +36,8 @@ function absUrl(path: string) {
 type CaseRow = any;
 
 async function fetchCases(): Promise<CaseRow[]> {
-  const res = await fetch(absUrl('/api/v1/lawyer/cases'), { cache: 'no-store' });
+  const res = await fetch(__apiOriginUrl('\/v1/lawyer/cases'), { headers: __lawyerHeaders(),
+cache: 'no-store' });
   const j = await res.json().catch(() => null);
   if (!res.ok) throw new Error(j?.error?.message || `HTTP_${res.status}`);
   return Array.isArray(j?.cases) ? j.cases : (Array.isArray(j) ? j : []);

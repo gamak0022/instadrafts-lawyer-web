@@ -2,6 +2,27 @@ import Link from 'next/link';
 import Attachments from './Attachments';
 import FinalEditor from './FinalEditor';
 
+
+const __DEV_LAWYER_ROLE = process.env.NEXT_PUBLIC_DEV_ROLE || 'LAWYER';
+const __DEV_LAWYER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID || 'lawyer_1';
+
+function __lawyerHeaders() {
+  return {
+    'x-user-role': __DEV_LAWYER_ROLE,
+    'x-user-id': __DEV_LAWYER_ID,
+  } as Record<string, string>;
+}
+
+function __apiOriginUrl(path: string) {
+  const base =
+    process.env.API_ORIGIN ||
+    process.env.NEXT_PUBLIC_API_ORIGIN ||
+    '';
+  if (!base) throw new Error('API_ORIGIN_MISSING');
+  return new URL(path, base).toString();
+}
+
+
 async function fetchCase(caseId: string) {
   // Lawyer list endpoint exists; case detail might be via admin or client preview.
   // We will rely on list + attachments + final submit.
