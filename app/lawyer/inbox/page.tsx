@@ -1,9 +1,21 @@
 import Link from 'next/link';
 
+import { headers } from "next/headers";
+
+function absUrl(path: string) {
+  const h = headers();
+  const proto = h.get("x-forwarded-proto") || "https";
+  const host = h.get("x-forwarded-host") || h.get("host");
+  const fallback = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  if (!host) return `${fallback}${path}`;
+  return `${proto}://${host}${path}`;
+}
+
+
 type CaseRow = any;
 
 async function fetchCases(): Promise<CaseRow[]> {
-  const res = await fetch('/api/v1/lawyer/cases', { cache: 'no-store' });
+  const res = await fetch(absUrl('/api/v1/lawyer/cases')), { cache: 'no-store' });
   const j = await res.json().catch(() => null);
   if (!res.ok) throw new Error(j?.error?.message || `HTTP_${res.status}`);
   return Array.isArray(j?.cases) ? j.cases : (Array.isArray(j) ? j : []);
