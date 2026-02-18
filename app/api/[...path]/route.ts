@@ -1,75 +1,34 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'nodejs';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.API_BASE ||
-  'https://instadrafts-api-xkrdwictda-el.a.run.app';
-
-function buildTarget(req: NextRequest, pathParts: string[]) {
-  const path = '/' + pathParts.join('/');
-  const url = new URL(req.url);
-  const qs = url.search ? url.search : '';
-  return API_BASE.replace(/\/+$/, '') + path + qs;
-}
-
-function withAuthHeaders(req: NextRequest, headers: Headers) {
-  // Minimal default gating for now (matches API checks)
-  // Can be swapped to cookie-based later.
-  if (!headers.get('x-user-role')) headers.set('x-user-role', 'LAWYER');
-  if (!headers.get('x-user-id')) headers.set('x-user-id', 'lawyer_1');
-  return headers;
-}
-
-async function handler(req: NextRequest, ctx: { params: { path: string[] } }) {
-  const target = buildTarget(req, ctx.params.path || []);
-  const method = req.method.toUpperCase();
-
-  // Clone headers (strip hop-by-hop headers that can break)
+async function handle(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  const url = `${API_BASE}/${path.join('/')}${req.nextUrl.search}`;
+  
   const headers = new Headers(req.headers);
   headers.delete('host');
-  headers.delete('connection');
-  headers.delete('content-length');
 
-  withAuthHeaders(req, headers);
+  try {
+    const res = await fetch(url, {
+      method: req.method,
+      headers,
+      body: req.method === 'GET' ? undefined : await req.text(),
+    });
 
-  // Forward body for non-GET/HEAD. Keep as stream to support multipart.
-  const init: RequestInit = {
-    method,
-    headers,
-    redirect: 'manual',
-  };
-
-  if (method !== 'GET' && method !== 'HEAD') {
-    init.body = req.body as any;
+    const data = await res.text();
+    return new NextResponse(data, {
+      status: res.status,
+      headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/json' }
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 502 });
   }
-
-  const upstream = await fetch(target, init);
-
-  // Stream back response
-  const resHeaders = new Headers(upstream.headers);
-  // Avoid CORS / encoding issues in Next dev
-  resHeaders.delete('content-encoding');
-
-  return new NextResponse(upstream.body, {
-    status: upstream.status,
-    headers: resHeaders,
-  });
 }
 
-export async function GET(req: NextRequest, ctx: any) {
-  return handler(req, ctx);
-}
-export async function POST(req: NextRequest, ctx: any) {
-  return handler(req, ctx);
-}
-export async function PUT(req: NextRequest, ctx: any) {
-  return handler(req, ctx);
-}
-export async function PATCH(req: NextRequest, ctx: any) {
-  return handler(req, ctx);
-}
-export async function DELETE(req: NextRequest, ctx: any) {
-  return handler(req, ctx);
-}
+export const GET = handle;
+export const POST = handle;
+export const PUT = handle;
+export const PATCH = handle;
+export const DELETE = handle;
